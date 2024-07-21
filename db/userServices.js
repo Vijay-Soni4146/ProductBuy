@@ -1,4 +1,5 @@
 const { User } = require("../models/user");
+const Session = require("../models/session");
 const {
   ValidationMsgs,
   TableNames,
@@ -140,6 +141,21 @@ const UserService = class {
       return await user.save();
     } catch (err) {
       console.log(`Error from (insertUserRecord) Userservice: ${err}`);
+      throw err;
+    }
+  };
+
+  static insertCartData = async (sessionId, cart, total, user) => {
+    let userCart = new Session();
+    userCart.sessionId = sessionId;
+    userCart.cart = cart;
+    userCart.total = total;
+    userCart.user = user;
+
+    try {
+      return await userCart.save();
+    } catch (err) {
+      console.log(`Error from (insertCartData) Userservice: ${err}`);
       throw err;
     }
   };

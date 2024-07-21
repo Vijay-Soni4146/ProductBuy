@@ -22,12 +22,12 @@ const userAuth = async (req, res, next) => {
       .withName()
       .execute();
     if (!user) {
-      res.json("Error JWT")
+      res.json({message:"Error JWT"})
     }
     req.user = user;
     next();
   } catch (err) {
-    console.log("JWT error:", err.message);
+    // console.log("JWT error:", err.message);
     res
       .status(ApiResponseCode.Unauthorized)
       .send(Util.getErrorMessageFromString(ValidationMsgs.authFail));

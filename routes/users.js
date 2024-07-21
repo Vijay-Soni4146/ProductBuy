@@ -8,6 +8,8 @@ const {
   forgotPassword,
   isAuth,
   getCheckout,
+  getCheckoutSuccess,
+  getOrders
 } = require("../controllers/users");
 
 const userAuth = require("../middlewares/userAuth");
@@ -16,14 +18,14 @@ router.post("/register", register);
 router.post("/login", login);
 router.post("/forgotPassword", forgotPassword);
 router.post("/resetPassword", resetPassword);
-router.post("/logout", logout);
+router.post("/logout",userAuth, logout);
 router.get("/isauth", userAuth, isAuth);
 
-router.post("/checkout", getCheckout);
+router.post("/checkout",userAuth, getCheckout);
 
-// router.get("/checkout/success", getCheckoutSuccess);
+router.get("/checkout/success", getCheckoutSuccess);
 
-// router.get("/checkout/cancel", getCheckout);
+router.get("/orders", userAuth, getOrders);
 
 // router.get("/orders", userAuth, getOrders);
 

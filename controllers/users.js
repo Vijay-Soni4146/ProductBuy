@@ -1,10 +1,13 @@
 const UserService = require("../db/userServices");
+const { v4: uuidv4 } = require("uuid");
 const {
   GeneralMsgs,
   TableFields,
   ValidationMsgs,
 } = require("../utils/constants");
 const ValidationError = require("../utils/ValidationError");
+const Session = require("../models/session");
+const Order = require("../models/order");
 const stripe = require("stripe")(process.env.SKTEST_KEY);
 
 exports.register = async (req, res) => {
@@ -14,8 +17,8 @@ exports.register = async (req, res) => {
     .execute();
 
   if (userExists) {
-    res.json({
-      status: ApiResponseCode.Conflict,
+    return res.json({
+      status: 500,
       message: GeneralMsgs.emailExists,
       result: [],
     });
@@ -23,14 +26,12 @@ exports.register = async (req, res) => {
 
   const User = await UserService.insertUserRecord(req.body);
 
-  res.json({ User });
-
-  // send CREDENTIALS ON EMAIL
-  // await sendMail(req.body.email, randomPassword, User.name);
+  return res.json({ User });
 };
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  // console.log(email, password);
 
   const user = await UserService.getUserByEmail(email)
     .withEmail()
@@ -41,11 +42,15 @@ exports.login = async (req, res) => {
     .execute();
 
   if (!user) {
-    throw new ValidationError(GeneralMsgs.invalidEmail);
+    res.status(500).json({
+      message: "Invalid Email",
+    });
   }
 
   if (!(await user.isValidPassword(password))) {
-    throw new ValidationError(GeneralMsgs.invalidPassword);
+    res.status(500).json({
+      message: "Invalid Password",
+    });
   }
 
   const token = await UserService.genAuthToken(user);
@@ -62,7 +67,7 @@ exports.isAuth = async (req, res) => {
 exports.logout = async (req, res) => {
   const headerToken = req.header("Authorization").replace("Bearer ", "");
   UserService.removeAuth(req.user[TableFields.ID], headerToken);
-  return true;
+  return res.json(true);
 };
 
 exports.forgotPassword = async (req, res) => {
@@ -107,79 +112,119 @@ async function createAndStoreAuthToken(userObj) {
   return token;
 }
 
-exports.getCheckout = (req, res) => {
+exports.getCheckout = async (req, res) => {
   const cart = req.body.cart;
-  console.log(cart);
+  // console.log(cart);
   let total = 0;
   const products = cart.map((item) => {
-    total += item.quantity * item.product.price;
-    return {
-      price_data: {
-        currency: "inr",
-        product_data: {
-          name: item.product.title,
-          description: item.product.description,
-        },
-        unit_amount: item.product.price * 100,
-      },
-      quantity: item.quantity,
-    };
+    total += item.amount * item.price;
   });
+  total = total / 100;
+  console.log(total);
+  console.log("Creating Stripe session...");
+
+  const sessionId = uuidv4();
+  let user = {
+    email: req.user.email,
+    userId: req.user._id,
+  };
+  await UserService.insertCartData(sessionId, cart, total, user);
 
   stripe.checkout.sessions
     .create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: products,
+      line_items: cart.map((p) => {
+        return {
+          price_data: {
+            currency: "inr",
+            product_data: {
+              name: p.name,
+            },
+            unit_amount: p.price,
+          },
+          quantity: p.amount,
+        };
+      }),
       success_url:
         req.protocol +
         "://" +
         req.get("host") +
-        `/checkout/success?session_id={CHECKOUT_SESSION_ID}`, // => http://localhost:3000
-      cancel_url: req.protocol + "://" + req.get("host") + "/checkout/cancel",
+        `/api/users/checkout/success?sessionId=${sessionId}`, // => http://localhost:3000
+      cancel_url: `http://localhost:5173/cart`,
     })
     .then((session) => {
+      // console.log("Stripe session created:", session);
       res.status(200).json({
         sessionId: session.id,
         totalSum: total,
       });
     })
     .catch((err) => {
-      console.error(err);
+      // console.error("Error creating Stripe session:", err);
       res.status(500).json({
         message: "Internal Server Error",
       });
     });
 };
 
-exports.getCheckoutSuccess = (req, res, next) => {
-  const sessionId = req.query.session_id;
-  console.log(sessionId);
-  // req.user
-  //   .populate("cart.items.productId")
-  //   .execPopulate()
-  //   .then((user) => {
-  //     const products = user.cart.items.map((i) => {
-  //       return { quantity: i.quantity, product: { ...i.productId._doc } };
-  //     });
-  //     const order = new Order({
-  //       user: {
-  //         email: req.user.email,
-  //         userId: req.user,
-  //       },
-  //       products: products,
-  //     });
-  //     return order.save();
-  //   })
-  //   .then((result) => {
-  //     return req.user.clearCart();
-  //   })
-  //   .then(() => {
-  //     res.redirect("/orders");
-  //   })
-  //   .catch((err) => {
-  //     const error = new Error(err);
-  //     error.httpStatusCode = 500;
-  //     return next(error);
-  //   });
+exports.getCheckoutSuccess = async (req, res, next) => {
+  // console.log("Hello");
+  const sessionId = req.query.sessionId;
+  // console.log(sessionId);
+
+  if (!sessionId) {
+    return res.status(400).json({
+      message: "Missing session ID",
+    });
+  }
+
+  try {
+    const sessionData = await Session.findOne({ sessionId });
+
+    if (!sessionData) {
+      return res.status(404).json({
+        message: "Session data not found",
+      });
+    }
+
+    const { cart, total, user } = sessionData;
+
+    // console.log("Checkout success with cart:", cart);
+    // console.log("Total:", total);
+
+    const products = cart.map((item) => {
+      return { quantity: item.amount, product: { ...item } };
+    });
+
+    const order = new Order({
+      user: {
+        email: user.email,
+        userId: user.userId,
+      },
+      products: products,
+    });
+    await order.save();
+
+    await Session.deleteOne({ sessionId });
+
+    res.redirect(`http://localhost:5173/order`);
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+};
+
+exports.getOrders = async (req, res) => {
+  const orders = await Order.find({ "user.userId": req.user._id });
+  if (orders) {
+    return res.status(200).json({
+      order: orders,
+    });
+  } else {
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 };
