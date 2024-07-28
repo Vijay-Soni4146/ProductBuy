@@ -6,7 +6,6 @@ const {
 } = require("../utils/constants");
 const Util = require("../utils/utils");
 const userService = require("../db/userServices");
-const ValidationError = require("../utils/ValidationError");
 require("dotenv").config();
 
 const userAuth = async (req, res, next) => {

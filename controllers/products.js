@@ -33,7 +33,7 @@ const getAllProducts = async (req, res) => {
 
   // apiData = apiData.skip(skip).limit(limit);
 
-  console.log(queryObject);
+  // console.log(queryObject);
 
   const Products = await apiData;
   res.status(200).json({ Products, nbHits: Products.length });
@@ -47,7 +47,10 @@ const createProduct = async (req, res) => {
     let products = await product.save();
     res.json({ result: "success", products: products });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -57,7 +60,10 @@ const getProduct = async (req, res) => {
     const product = await Product.findById(id);
     res.status(200).json({ product });
   } catch (err) {
-    console.log(err);
+    // console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 };
 

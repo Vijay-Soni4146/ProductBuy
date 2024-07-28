@@ -17,7 +17,7 @@ exports.register = async (req, res) => {
     .execute();
 
   if (userExists) {
-    return res.json({
+    return res.status(500).json({
       status: 500,
       message: GeneralMsgs.emailExists,
       result: [],
@@ -120,8 +120,8 @@ exports.getCheckout = async (req, res) => {
     total += item.amount * item.price;
   });
   total = total / 100;
-  console.log(total);
-  console.log("Creating Stripe session...");
+  // console.log(total);
+  // console.log("Creating Stripe session...");
 
   const sessionId = uuidv4();
   let user = {
@@ -188,7 +188,7 @@ exports.getCheckoutSuccess = async (req, res, next) => {
       });
     }
 
-    const { cart, total, user } = sessionData;
+    const { cart, user } = sessionData;
 
     // console.log("Checkout success with cart:", cart);
     // console.log("Total:", total);
