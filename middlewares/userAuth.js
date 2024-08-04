@@ -21,7 +21,7 @@ const userAuth = async (req, res, next) => {
       .withName()
       .execute();
     if (!user) {
-      res.json({message:"Error JWT"})
+      res.json({ message: "Error JWT" });
     }
     req.user = user;
     next();

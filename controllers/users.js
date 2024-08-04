@@ -151,7 +151,7 @@ exports.getCheckout = async (req, res) => {
         "://" +
         req.get("host") +
         `/api/users/checkout/success?sessionId=${sessionId}`, // => http://localhost:3000
-      cancel_url: `http://localhost:5173/cart`,
+      cancel_url: `https://simplebuyz.netlify.app/cart`,
     })
     .then((session) => {
       // console.log("Stripe session created:", session);
@@ -208,7 +208,7 @@ exports.getCheckoutSuccess = async (req, res, next) => {
 
     await Session.deleteOne({ sessionId });
 
-    res.redirect(`http://localhost:5173/order`);
+    res.redirect(`https://simplebuyz.netlify.app/order`);
   } catch (err) {
     res.status(500).json({
       message: "Internal Server Error",

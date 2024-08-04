@@ -1,23 +1,21 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const {
-  ValidationMsgs,
-  TableFields,
-} = require("../utils/constants");
+const { ValidationMsgs, TableFields } = require("../utils/constants");
 
-const userSchema = new Schema({
-  email: {
-    type: String,
-    required: true,
-  },
-  password: {
-    type: String,
-    required: true
-  },
-  [TableFields._name]: {
+const userSchema = new Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    [TableFields._name]: {
       type: String,
       trim: true,
     },
@@ -75,6 +73,6 @@ userSchema.methods.generateAuthToken = function () {
   return token;
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
-module.exports = {User}
+module.exports = { User };
